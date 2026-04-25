@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write # create the GitHub release
+  id-token: write # request OIDC token for npm Trusted Publishing
 
 jobs:
   release:
@@ -22,6 +23,10 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+
+      # npm Trusted Publishing requires npm >= 11.5.1; ensure we have a recent CLI.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -52,16 +57,12 @@ jobs:
           "
 
       - name: Publish domograph
-        run: npm publish --access public
+        run: npm publish --access public --provenance
         working-directory: packages/core
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @domograph/vue
-        run: npm publish --access public
+        run: npm publish --access public --provenance
         working-directory: packages/vue
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release
         env:
