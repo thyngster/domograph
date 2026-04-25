@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create the GitHub release
+  id-token: write # request OIDC token for npm Trusted Publishing
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # npm Trusted Publishing requires npm >= 11.5.1; ensure we have a recent CLI.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify package versions match tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          CORE=$(node -p "require('./packages/core/package.json').version")
+          VUE=$(node -p "require('./packages/vue/package.json').version")
+          test "$TAG" = "$CORE" || { echo "tag $GITHUB_REF_NAME != @domograph/core $CORE"; exit 1; }
+          test "$TAG" = "$VUE"  || { echo "tag $GITHUB_REF_NAME != @domograph/vue  $VUE";  exit 1; }
+
+      - name: Build packages
+        run: bun run --cwd packages/core build && bun run --cwd packages/vue build
+
+      # npm publish does not rewrite "workspace:*" specifiers, so pin
+      # @domograph/vue's dependency on @domograph/core to the released version
+      # before publishing. The change only lives on the runner.
+      - name: Pin workspace deps for publish
+        run: |
+          node -e "
+            const fs = require('fs');
+            const corePkg = JSON.parse(fs.readFileSync('packages/core/package.json', 'utf8'));
+            const vuePath = 'packages/vue/package.json';
+            const vuePkg = JSON.parse(fs.readFileSync(vuePath, 'utf8'));
+            vuePkg.dependencies['@domograph/core'] = '^' + corePkg.version;
+            fs.writeFileSync(vuePath, JSON.stringify(vuePkg, null, 2) + '\n');
+          "
+
+      - name: Publish @domograph/core
+        run: npm publish --access public --provenance
+        working-directory: packages/core
+
+      - name: Publish @domograph/vue
+        run: npm publish --access public --provenance
+        working-directory: packages/vue
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
