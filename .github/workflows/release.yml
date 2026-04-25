@@ -19,14 +19,13 @@ jobs:
         with:
           bun-version: latest
 
-      - uses: actions/setup-node@v4
+      # Node 24 ships with npm >= 11.5.1, which is the minimum for Trusted
+      # Publishing — avoids the brittle "npm install -g npm@latest" self-upgrade
+      # which has been known to corrupt the bundled npm on hosted runners.
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
-
-      # npm Trusted Publishing requires npm >= 11.5.1; ensure we have a recent CLI.
-      - name: Upgrade npm
-        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
