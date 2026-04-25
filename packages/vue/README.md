@@ -1,6 +1,6 @@
 # @domograph/vue
 
-Vue 3 plugin for [@domograph/core](https://github.com/thyngster/domograph/tree/main/packages/core) — a drop-in live overlay
+Vue 3 plugin for [domograph](https://github.com/thyngster/domograph/tree/main/packages/core) — a drop-in live overlay
 charting DOM-node count over time. Useful for spotting leaks while
 debugging Vue apps.
 

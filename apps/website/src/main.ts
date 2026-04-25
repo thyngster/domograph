@@ -1,5 +1,5 @@
 import "./style.css";
-import { createDomograph } from "@domograph/core";
+import { createDomograph } from "domograph";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 <div class="max-w-3xl mx-auto px-6 min-h-screen flex flex-col">
@@ -48,7 +48,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <section class="py-14 border-b border-zinc-200 dark:border-zinc-800">
     <h2 class="text-2xl md:text-3xl font-semibold tracking-tight mb-3">Install</h2>
     <pre class="font-mono text-sm leading-relaxed p-4 m-0 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-x-auto text-zinc-900 dark:text-zinc-100"><code># Core (framework-free)
-bun add @domograph/core
+bun add domograph
 
 # Vue 3 plugin (peer-depends on vue)
 bun add @domograph/vue</code></pre>
@@ -58,7 +58,7 @@ bun add @domograph/vue</code></pre>
     <h2 class="text-2xl md:text-3xl font-semibold tracking-tight mb-3">Quick start</h2>
 
     <h3 class="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400 mt-6 mb-2">Vanilla</h3>
-    <pre class="font-mono text-sm leading-relaxed p-4 m-0 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-x-auto text-zinc-900 dark:text-zinc-100"><code>import { createDomograph } from '@domograph/core';
+    <pre class="font-mono text-sm leading-relaxed p-4 m-0 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-x-auto text-zinc-900 dark:text-zinc-100"><code>import { createDomograph } from 'domograph';
 
 createDomograph().show();</code></pre>
 

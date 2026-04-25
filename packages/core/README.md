@@ -1,4 +1,4 @@
-# @domograph/core
+# domograph
 
 Live debug overlay charting DOM-node count over time. Framework-free —
 drop into any page to spot leaks and runaway component trees while
@@ -7,14 +7,14 @@ developing.
 ## Install
 
 ```bash
-bun add @domograph/core
-# or: npm i @domograph/core / pnpm add @domograph/core / yarn add @domograph/core
+bun add domograph
+# or: npm i domograph / pnpm add domograph / yarn add domograph
 ```
 
 ## Usage
 
 ```ts
-import { createDomograph } from "@domograph/core";
+import { createDomograph } from "domograph";
 
 const monitor = createDomograph();
 monitor.show(); // mounts to document.body and starts sampling

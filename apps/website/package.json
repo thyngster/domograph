@@ -9,7 +9,7 @@
     "preview": "vp preview"
   },
   "dependencies": {
-    "@domograph/core": "workspace:*"
+    "domograph": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",

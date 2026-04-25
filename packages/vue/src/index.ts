@@ -1,7 +1,7 @@
-import { createDomograph, type DomographInstance, type DomographOptions } from "@domograph/core";
+import { createDomograph, type DomographInstance, type DomographOptions } from "domograph";
 import { inject, type App, type InjectionKey, type Plugin } from "vue";
 
-export type { DomographInstance, DomographOptions } from "@domograph/core";
+export type { DomographInstance, DomographOptions } from "domograph";
 
 export interface DomographPluginOptions extends DomographOptions {
   /**

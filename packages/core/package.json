@@ -1,5 +1,5 @@
 {
-  "name": "@domograph/core",
+  "name": "domograph",
   "version": "0.0.1",
   "description": "Live debug overlay charting DOM node count over time. Framework-free.",
   "keywords": [

@@ -11,21 +11,21 @@ Framework-free core, with first-class Vue 3 bindings.
 
 ## Packages
 
-| Package                            | Description                                 |
-| ---------------------------------- | ------------------------------------------- |
-| [`@domograph/core`](packages/core) | Framework-free overlay. Drop into any page. |
-| [`@domograph/vue`](packages/vue)   | Vue 3 plugin + `useDomograph()` composable. |
+| Package                          | Description                                 |
+| -------------------------------- | ------------------------------------------- |
+| [`domograph`](packages/core)     | Framework-free overlay. Drop into any page. |
+| [`@domograph/vue`](packages/vue) | Vue 3 plugin + `useDomograph()` composable. |
 
 ## Quick start
 
 ### Vanilla
 
 ```bash
-bun add @domograph/core
+bun add domograph
 ```
 
 ```ts
-import { createDomograph } from "@domograph/core";
+import { createDomograph } from "domograph";
 
 const monitor = createDomograph({ position: "bottom-right" });
 monitor.show(); // mounts to document.body and starts sampling
@@ -55,7 +55,7 @@ See each package's README for the full options reference.
 apps/
   website/        Demo + docs site
 packages/
-  core/           @domograph/core
+  core/           domograph
   vue/            @domograph/vue
 ```
 
