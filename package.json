@@ -10,8 +10,7 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "dev": "vp run website#dev",
-    "prepare": "vp env install && vp config"
+    "dev": "vp run website#dev"
   },
   "devDependencies": {
     "tsdown": "0.21.10",
