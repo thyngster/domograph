@@ -26,10 +26,15 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 
   <section id="demo" class="py-14 border-b border-zinc-200 dark:border-zinc-800">
     <h2 class="text-2xl md:text-3xl font-semibold tracking-tight mb-3">Live demo</h2>
-    <p class="text-zinc-600 dark:text-zinc-400 mb-6 max-w-xl">
+    <p class="text-zinc-600 dark:text-zinc-400 mb-3 max-w-xl">
       Spawn or clear DOM and watch the floating overlay in the bottom-right react.
       Each dot is a single empty <code class="font-mono text-sm px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">&lt;div&gt;</code>,
       so the count moves one-for-one.
+    </p>
+    <p class="text-zinc-600 dark:text-zinc-400 mb-6 max-w-xl text-sm">
+      Tip: click the icon in the top-right of the chart (or the button below) to pop it
+      into a floating Picture-in-Picture window that stays on top of any tab.
+      <span class="text-zinc-500">Chromium only.</span>
     </p>
     <div class="flex gap-2 flex-wrap mb-4">
       <button id="dg-add-100" type="button" class="px-3.5 py-2 text-sm font-medium rounded-md border border-brand-edge text-brand bg-brand-soft hover:shadow-md transition cursor-pointer">
@@ -40,6 +45,9 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
       </button>
       <button id="dg-clear" type="button" class="px-3.5 py-2 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800 hover:shadow-md transition cursor-pointer">
         Clear
+      </button>
+      <button id="dg-pip" type="button" class="px-3.5 py-2 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800 hover:shadow-md transition cursor-pointer">
+        Pop out chart
       </button>
     </div>
     <div id="dg-sandbox" aria-label="Spawned DOM" class="flex flex-wrap gap-[3px] content-start p-3 h-[220px] overflow-auto border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-900"></div>
@@ -82,7 +90,8 @@ createApp(App)
 </div>
 `;
 
-createDomograph().show();
+const monitor = createDomograph();
+monitor.show();
 
 const sandbox = document.querySelector<HTMLDivElement>("#dg-sandbox")!;
 function spawn(n: number) {
@@ -102,4 +111,14 @@ document
   .addEventListener("click", () => spawn(1000));
 document.querySelector<HTMLButtonElement>("#dg-clear")!.addEventListener("click", () => {
   sandbox.innerHTML = "";
+});
+
+const pipBtn = document.querySelector<HTMLButtonElement>("#dg-pip")!;
+if (!("documentPictureInPicture" in window)) {
+  pipBtn.disabled = true;
+  pipBtn.title = "Document Picture-in-Picture is not supported in this browser";
+  pipBtn.classList.add("opacity-50", "cursor-not-allowed");
+}
+pipBtn.addEventListener("click", () => {
+  void monitor.showPiP();
 });

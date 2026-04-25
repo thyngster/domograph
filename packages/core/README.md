@@ -43,9 +43,23 @@ const m = createDomograph();
 m.show(parent?);  // mount + start sampling
 m.hide();         // stop + detach (reusable)
 m.sample();       // force a sample now, returns the count
+m.showPiP();      // pop the chart into a floating window (Chromium only)
 m.destroy();      // permanent
 m.element;        // the floating root element
 ```
+
+### Floating window
+
+The chart includes a small icon in its top-right that opens a Document
+Picture-in-Picture window so the chart stays on top of any tab or app.
+You can also trigger it programmatically:
+
+```ts
+await m.showPiP(); // resolves with the PiP `Window`, or `null` if unsupported
+```
+
+Browser support: Chrome 116+, Edge, Opera. The icon is hidden automatically
+on Firefox and Safari, where the API isn't available yet.
 
 ## License
 

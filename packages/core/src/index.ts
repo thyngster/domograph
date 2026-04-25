@@ -30,9 +30,19 @@ export interface DomographInstance {
   hide(): void;
   /** Force-take a sample now. */
   sample(): number;
+  /**
+   * Move the chart into a Document Picture-in-Picture window so it floats on
+   * top of any tab/app. Returns the PiP `Window` on success, `null` if the
+   * browser doesn't support the API (Firefox/Safari).
+   */
+  showPiP(): Promise<Window | null>;
   /** Permanently destroy the instance. */
   destroy(): void;
 }
+
+type DocumentPictureInPicture = {
+  requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
+};
 
 const DEFAULTS: Required<Omit<DomographOptions, "count">> = {
   history: 200,
@@ -71,6 +81,8 @@ interface InternalState {
   rafId: number | null;
   mounted: boolean;
   destroyed: boolean;
+  pipWindow: Window | null;
+  pipReturnParent: HTMLElement | null;
 }
 
 export function createDomograph(userOptions: DomographOptions = {}): DomographInstance {
@@ -119,6 +131,40 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     "color:#5d88b8;font-size:11px;font-weight:600;min-width:46px;text-align:right";
   headerRight.appendChild(deltaEl);
 
+  const pipBtn = document.createElement("button");
+  pipBtn.type = "button";
+  pipBtn.title = "Open in floating window";
+  pipBtn.setAttribute("aria-label", "Open in floating window");
+  pipBtn.innerHTML =
+    '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+    '<rect x="1" y="2.5" width="14" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/>' +
+    '<rect x="8" y="7.5" width="6" height="4" rx="0.5" fill="currentColor"/>' +
+    "</svg>";
+  pipBtn.style.cssText = [
+    "background:transparent",
+    "border:none",
+    "color:#5d88b8",
+    "cursor:pointer",
+    "padding:0 0 0 4px",
+    "display:inline-flex",
+    "align-items:center",
+    "pointer-events:auto",
+    "line-height:0",
+  ].join(";");
+  pipBtn.addEventListener("mouseenter", () => {
+    pipBtn.style.color = "#cfe6ff";
+  });
+  pipBtn.addEventListener("mouseleave", () => {
+    pipBtn.style.color = "#5d88b8";
+  });
+  pipBtn.addEventListener("click", () => {
+    void showPiP();
+  });
+  if (typeof window === "undefined" || !("documentPictureInPicture" in window)) {
+    pipBtn.style.display = "none";
+  }
+  headerRight.appendChild(pipBtn);
+
   const meta = document.createElement("div");
   meta.style.cssText =
     "display:flex;justify-content:space-between;padding:0 10px 4px;font-size:10px;font-weight:600;color:#4a6c91;letter-spacing:0.06em";
@@ -148,6 +194,8 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     rafId: null,
     mounted: false,
     destroyed: false,
+    pipWindow: null,
+    pipReturnParent: null,
   };
 
   function fmtDelta(d: number): { text: string; color: string } {
@@ -264,14 +312,72 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
   }
 
   function hide(): void {
+    if (state.pipWindow && !state.pipWindow.closed) {
+      const pip = state.pipWindow;
+      // Null out first so the pagehide handler bails — we're tearing down.
+      state.pipWindow = null;
+      state.pipReturnParent = null;
+      pip.close();
+    }
     if (state.rafId != null) {
       cancelAnimationFrame(state.rafId);
       state.rafId = null;
     }
-    if (state.mounted && container.parentNode) {
+    if (container.parentNode) {
       container.parentNode.removeChild(container);
     }
     state.mounted = false;
+  }
+
+  async function showPiP(): Promise<Window | null> {
+    if (state.destroyed) return null;
+    if (typeof window === "undefined") return null;
+    const docPiP = (window as Window & { documentPictureInPicture?: DocumentPictureInPicture })
+      .documentPictureInPicture;
+    if (!docPiP) return null;
+
+    if (state.pipWindow && !state.pipWindow.closed) {
+      state.pipWindow.focus();
+      return state.pipWindow;
+    }
+
+    // Header (~26px) + meta row (~14px) + canvas + a hair of breathing room.
+    const pipWindow = await docPiP.requestWindow({
+      width: opts.width,
+      height: opts.height + 44,
+    });
+    state.pipWindow = pipWindow;
+    state.pipReturnParent = (container.parentNode as HTMLElement | null) ?? document.body;
+
+    container.style.position = "static";
+    container.style.top = "";
+    container.style.bottom = "";
+    container.style.left = "";
+    container.style.right = "";
+    container.style.borderRadius = "0";
+    container.style.border = "none";
+    container.style.boxShadow = "none";
+    container.style.width = "100%";
+
+    pipWindow.document.body.style.cssText = "margin:0;background:#0a1322";
+    pipWindow.document.body.appendChild(container);
+
+    if (state.rafId == null) state.rafId = requestAnimationFrame(tick);
+    state.mounted = true;
+
+    pipWindow.addEventListener("pagehide", () => {
+      if (state.pipWindow !== pipWindow) return; // teardown raced us
+      container.style.borderRadius = "6px";
+      container.style.border = "1px solid #1f3358";
+      container.style.boxShadow = "0 4px 12px rgba(0,0,0,0.35)";
+      container.style.width = `${opts.width}px`;
+      applyCorner(container, opts.position, opts.margin);
+      (state.pipReturnParent ?? document.body).appendChild(container);
+      state.pipWindow = null;
+      state.pipReturnParent = null;
+    });
+
+    return pipWindow;
   }
 
   function sample(): number {
@@ -290,5 +396,5 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     state.samples.length = 0;
   }
 
-  return { element: container, show, hide, sample, destroy };
+  return { element: container, show, hide, sample, showPiP, destroy };
 }
