@@ -178,14 +178,26 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
   meta.appendChild(maxEl);
 
   const canvas = document.createElement("canvas");
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = opts.width * dpr;
-  canvas.height = opts.height * dpr;
-  canvas.style.cssText = `width:${opts.width}px;height:${opts.height}px;display:block`;
+  canvas.style.cssText = `width:100%;height:${opts.height}px;display:block`;
   container.appendChild(canvas);
 
   const ctx = canvas.getContext("2d")!;
-  ctx.scale(dpr, dpr);
+
+  function resizeBitmap(): void {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || opts.width;
+    const h = canvas.clientHeight || opts.height;
+    canvas.width = Math.max(1, Math.round(w * dpr));
+    canvas.height = Math.max(1, Math.round(h * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resizeBitmap();
+
+  const resizeObs = new ResizeObserver(() => {
+    resizeBitmap();
+    draw();
+  });
+  resizeObs.observe(canvas);
 
   const state: InternalState = {
     samples: [],
@@ -209,8 +221,8 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
 
   function draw(): void {
     if (state.samples.length < 2) return;
-    const w = opts.width;
-    const h = opts.height;
+    const w = canvas.clientWidth || opts.width;
+    const h = canvas.clientHeight || opts.height;
     ctx.clearRect(0, 0, w, h);
 
     const max = Math.max(...state.samples);
@@ -228,8 +240,11 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
       ctx.stroke();
     }
 
+    // Right-align: pin the newest sample to the right edge, older samples
+    // extend leftward. Buffer "fills" leftward until history is reached.
+    const offset = w - (state.samples.length - 1) * stepX;
     const points: [number, number][] = state.samples.map((v, i) => {
-      const x = i * stepX;
+      const x = offset + i * stepX;
       const norm = (v - min) / range;
       const y = h - 3 - norm * (h - 6);
       return [x, y];
@@ -358,6 +373,21 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     container.style.border = "none";
     container.style.boxShadow = "none";
     container.style.width = "100%";
+    container.style.height = "100vh";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    canvas.style.height = "auto";
+    canvas.style.flex = "1";
+    canvas.style.minHeight = "0";
+
+    // Scale text with window dimensions so the chart reads at any size.
+    header.style.padding = "min(1.6vh, 14px) min(2vw, 18px) min(0.4vh, 4px)";
+    meta.style.padding = "0 min(2vw, 18px) min(0.8vh, 6px)";
+    labelEl.style.fontSize = "clamp(11px, 1.6vw, 26px)";
+    valueEl.style.fontSize = "clamp(18px, 4vw, 72px)";
+    deltaEl.style.fontSize = "clamp(11px, 1.6vw, 26px)";
+    minEl.style.fontSize = "clamp(10px, 1.4vw, 22px)";
+    maxEl.style.fontSize = "clamp(10px, 1.4vw, 22px)";
 
     pipWindow.document.body.style.cssText = "margin:0;background:#0a1322";
     pipWindow.document.body.appendChild(container);
@@ -371,6 +401,19 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
       container.style.border = "1px solid #1f3358";
       container.style.boxShadow = "0 4px 12px rgba(0,0,0,0.35)";
       container.style.width = `${opts.width}px`;
+      container.style.height = "";
+      container.style.display = "";
+      container.style.flexDirection = "";
+      canvas.style.height = `${opts.height}px`;
+      canvas.style.flex = "";
+      canvas.style.minHeight = "";
+      header.style.padding = "5px 8px 1px";
+      meta.style.padding = "0 10px 4px";
+      labelEl.style.fontSize = "11px";
+      valueEl.style.fontSize = "18px";
+      deltaEl.style.fontSize = "11px";
+      minEl.style.fontSize = "10px";
+      maxEl.style.fontSize = "10px";
       applyCorner(container, opts.position, opts.margin);
       (state.pipReturnParent ?? document.body).appendChild(container);
       state.pipWindow = null;
@@ -392,6 +435,7 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
 
   function destroy(): void {
     hide();
+    resizeObs.disconnect();
     state.destroyed = true;
     state.samples.length = 0;
   }
