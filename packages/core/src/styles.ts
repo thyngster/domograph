@@ -37,9 +37,15 @@ export const STYLES = `
   align-items: baseline;
   padding: 5px 8px 1px;
   gap: 6px;
+  cursor: grab;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: none;
 }
+:host([data-dragging]) .header { cursor: grabbing; }
 :host([data-pip]) .header {
   padding: min(1.6vh, 14px) min(2vw, 18px) min(0.4vh, 4px);
+  cursor: default;
 }
 
 .label {

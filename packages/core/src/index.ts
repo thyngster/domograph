@@ -132,6 +132,7 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     </div>
   `;
 
+  const header = shadow.querySelector<HTMLDivElement>(".header")!;
   const labelEl = shadow.querySelector<HTMLSpanElement>(".label")!;
   const valueEl = shadow.querySelector<HTMLSpanElement>(".value")!;
   const deltaEl = shadow.querySelector<HTMLSpanElement>(".delta")!;
@@ -372,6 +373,60 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
   closeBtn.addEventListener("click", () => {
     destroy();
   });
+
+  // Drag-to-reposition. Header is the handle; clicks that originate on a
+  // button (PiP, close) short-circuit so they still toggle their action.
+  let drag: {
+    startX: number;
+    startY: number;
+    startLeft: number;
+    startTop: number;
+    pointerId: number;
+  } | null = null;
+
+  function onDragDown(e: PointerEvent): void {
+    if (state.pipWindow) return;
+    if ((e.target as Element).closest(".btn")) return;
+    e.preventDefault();
+    const rect = host.getBoundingClientRect();
+    host.style.top = `${rect.top}px`;
+    host.style.left = `${rect.left}px`;
+    host.style.right = "";
+    host.style.bottom = "";
+    drag = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: rect.left,
+      startTop: rect.top,
+      pointerId: e.pointerId,
+    };
+    header.setPointerCapture(e.pointerId);
+    host.dataset.dragging = "";
+  }
+
+  function onDragMove(e: PointerEvent): void {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    const w = host.offsetWidth;
+    const h = host.offsetHeight;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - w, drag.startLeft + dx));
+    const newTop = Math.max(0, Math.min(window.innerHeight - h, drag.startTop + dy));
+    host.style.left = `${newLeft}px`;
+    host.style.top = `${newTop}px`;
+  }
+
+  function onDragEnd(e: PointerEvent): void {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    header.releasePointerCapture(e.pointerId);
+    drag = null;
+    delete host.dataset.dragging;
+  }
+
+  header.addEventListener("pointerdown", onDragDown);
+  header.addEventListener("pointermove", onDragMove);
+  header.addEventListener("pointerup", onDragEnd);
+  header.addEventListener("pointercancel", onDragEnd);
 
   return { element: host, show, hide, sample, showPiP, destroy };
 }
