@@ -1,6 +1,6 @@
 {
   "name": "@domograph/vue",
-  "version": "0.0.2",
+  "version": "0.1.1",
   "description": "Vue 3 plugin for domograph — drop-in live DOM-node-count debug overlay.",
   "keywords": [
     "chart",

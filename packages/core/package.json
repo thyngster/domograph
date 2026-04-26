@@ -1,6 +1,6 @@
 {
   "name": "domograph",
-  "version": "0.0.2",
+  "version": "0.1.1",
   "description": "Live debug overlay charting DOM node count over time. Framework-free.",
   "keywords": [
     "chart",
