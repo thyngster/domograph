@@ -32,6 +32,7 @@ createDomograph({
   margin: 6,
   zIndex: 2147483647,
   label: "DOM",
+  closable: true, // show the X button that calls destroy()
   count: () => document.querySelectorAll("*").length, // override
 });
 ```

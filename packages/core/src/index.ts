@@ -17,6 +17,12 @@ export interface DomographOptions {
   zIndex?: number;
   /** Optional label override. Default 'DOM'. */
   label?: string;
+  /**
+   * Show an X button in the chart's top-right that calls `destroy()`.
+   * Set to `false` for embeds that should always remain visible.
+   * Default `true`.
+   */
+  closable?: boolean;
   /** Override the node-count function (useful for testing). */
   count?: () => number;
 }
@@ -53,6 +59,7 @@ const DEFAULTS: Required<Omit<DomographOptions, "count">> = {
   margin: 6,
   zIndex: 2147483647,
   label: "DOM",
+  closable: true,
 };
 
 function defaultCount(): number {
@@ -164,6 +171,37 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     pipBtn.style.display = "none";
   }
   headerRight.appendChild(pipBtn);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.title = "Close and unmount";
+  closeBtn.setAttribute("aria-label", "Close and unmount");
+  closeBtn.innerHTML =
+    '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+    '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+    "</svg>";
+  closeBtn.style.cssText = [
+    "background:transparent",
+    "border:none",
+    "color:#5d88b8",
+    "cursor:pointer",
+    "padding:0 0 0 4px",
+    "display:inline-flex",
+    "align-items:center",
+    "pointer-events:auto",
+    "line-height:0",
+  ].join(";");
+  closeBtn.addEventListener("mouseenter", () => {
+    closeBtn.style.color = "#cfe6ff";
+  });
+  closeBtn.addEventListener("mouseleave", () => {
+    closeBtn.style.color = "#5d88b8";
+  });
+  closeBtn.addEventListener("click", () => {
+    destroy();
+  });
+  if (!opts.closable) closeBtn.style.display = "none";
+  headerRight.appendChild(closeBtn);
 
   const meta = document.createElement("div");
   meta.style.cssText =
