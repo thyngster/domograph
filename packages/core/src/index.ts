@@ -1,3 +1,5 @@
+import { STYLES } from "./styles.js";
+
 export type DomographCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export interface DomographOptions {
@@ -28,7 +30,7 @@ export interface DomographOptions {
 }
 
 export interface DomographInstance {
-  /** Floating root element. */
+  /** Floating root element (the shadow DOM host). */
   readonly element: HTMLDivElement;
   /** Mount the widget under `parent` (default: document.body) and start sampling. */
   show(parent?: HTMLElement): void;
@@ -62,6 +64,17 @@ const DEFAULTS: Required<Omit<DomographOptions, "count">> = {
   closable: true,
 };
 
+const PIP_ICON =
+  '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+  '<rect x="1" y="2.5" width="14" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/>' +
+  '<rect x="8" y="7.5" width="6" height="4" rx="0.5" fill="currentColor"/>' +
+  "</svg>";
+
+const CLOSE_ICON =
+  '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+  '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+  "</svg>";
+
 function defaultCount(): number {
   let n = 0;
   const walker = document.createTreeWalker(document, NodeFilter.SHOW_ALL, null);
@@ -70,15 +83,10 @@ function defaultCount(): number {
 }
 
 function applyCorner(el: HTMLElement, corner: DomographCorner, margin: number): void {
-  el.style.position = "fixed";
-  el.style.top = "";
-  el.style.bottom = "";
-  el.style.left = "";
-  el.style.right = "";
-  if (corner.startsWith("top")) el.style.top = `${margin}px`;
-  else el.style.bottom = `${margin}px`;
-  if (corner.endsWith("left")) el.style.left = `${margin}px`;
-  else el.style.right = `${margin}px`;
+  el.style.top = corner.startsWith("top") ? `${margin}px` : "";
+  el.style.bottom = corner.startsWith("top") ? "" : `${margin}px`;
+  el.style.left = corner.endsWith("left") ? `${margin}px` : "";
+  el.style.right = corner.endsWith("left") ? "" : `${margin}px`;
 }
 
 interface InternalState {
@@ -96,97 +104,48 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
   const opts = { ...DEFAULTS, ...userOptions };
   const count = userOptions.count ?? defaultCount;
 
-  const container = document.createElement("div");
-  container.dataset.domograph = "";
-  container.style.cssText = [
-    `width:${opts.width}px`,
-    "opacity:0.95",
-    "overflow:hidden",
-    `z-index:${opts.zIndex}`,
-    "background:linear-gradient(180deg,#0d1a30 0%,#0a1322 100%)",
-    "border:1px solid #1f3358",
-    "border-radius:6px",
-    "box-shadow:0 4px 12px rgba(0,0,0,0.35)",
-    "font-family:ui-monospace,SFMono-Regular,Menlo,monospace",
-    "color:#cfe6ff",
-    "pointer-events:none",
-  ].join(";");
-  applyCorner(container, opts.position, opts.margin);
+  const host = document.createElement("div");
+  host.dataset.domograph = "";
+  host.style.setProperty("--dg-w", `${opts.width}px`);
+  host.style.setProperty("--dg-z", String(opts.zIndex));
+  host.style.setProperty("--dg-canvas-h", `${opts.height}px`);
+  applyCorner(host, opts.position, opts.margin);
 
-  const header = document.createElement("div");
-  header.style.cssText =
-    "display:flex;justify-content:space-between;align-items:baseline;padding:1px 8px 1px;gap:6px";
-  container.appendChild(header);
+  const shadow = host.attachShadow({ mode: "open" });
+  shadow.innerHTML = `
+    <style>${STYLES}</style>
+    <div class="root">
+      <div class="header">
+        <span class="label"></span>
+        <span class="right">
+          <span class="value">–</span>
+          <span class="delta"></span>
+          <button class="btn pip-btn" type="button" title="Open in floating window" aria-label="Open in floating window">${PIP_ICON}</button>
+          <button class="btn close-btn" type="button" title="Close and unmount" aria-label="Close and unmount">${CLOSE_ICON}</button>
+        </span>
+      </div>
+      <div class="meta">
+        <span class="min">min –</span>
+        <span class="max">max –</span>
+      </div>
+      <canvas class="canvas"></canvas>
+    </div>
+  `;
 
-  const labelEl = document.createElement("span");
+  const labelEl = shadow.querySelector<HTMLSpanElement>(".label")!;
+  const valueEl = shadow.querySelector<HTMLSpanElement>(".value")!;
+  const deltaEl = shadow.querySelector<HTMLSpanElement>(".delta")!;
+  const minEl = shadow.querySelector<HTMLSpanElement>(".min")!;
+  const maxEl = shadow.querySelector<HTMLSpanElement>(".max")!;
+  const canvas = shadow.querySelector<HTMLCanvasElement>(".canvas")!;
+  const pipBtn = shadow.querySelector<HTMLButtonElement>(".pip-btn")!;
+  const closeBtn = shadow.querySelector<HTMLButtonElement>(".close-btn")!;
+
   labelEl.textContent = opts.label;
-  labelEl.style.cssText =
-    "color:#5d88b8;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase";
-  header.appendChild(labelEl);
-
-  const headerRight = document.createElement("span");
-  headerRight.style.cssText = "display:flex;align-items:baseline;gap:4px";
-  header.appendChild(headerRight);
-
-  const valueEl = document.createElement("span");
-  valueEl.textContent = "–";
-  valueEl.style.cssText = "color:#e8f4ff;font-size:18px;font-weight:700;tab-size:1";
-  headerRight.appendChild(valueEl);
-
-  const deltaEl = document.createElement("span");
-  deltaEl.style.cssText =
-    "color:#5d88b8;font-size:11px;font-weight:600;min-width:46px;text-align:right";
-  headerRight.appendChild(deltaEl);
-
-  const pipBtn = document.createElement("button");
-  pipBtn.type = "button";
-  pipBtn.title = "Open in floating window";
-  pipBtn.setAttribute("aria-label", "Open in floating window");
-  pipBtn.innerHTML =
-    '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-    '<rect x="1" y="2.5" width="14" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/>' +
-    '<rect x="8" y="7.5" width="6" height="4" rx="0.5" fill="currentColor"/>' +
-    "</svg>";
-  pipBtn.style.cssText = [
-    "background:transparent",
-    "border:none",
-    "color:#5d88b8",
-    "cursor:pointer",
-    "padding:0 0 0 4px",
-    "display:inline-flex",
-    "align-items:center",
-    "pointer-events:auto",
-    "line-height:0",
-  ].join(";");
-  pipBtn.addEventListener("mouseenter", () => {
-    pipBtn.style.color = "#cfe6ff";
-  });
-  pipBtn.addEventListener("mouseleave", () => {
-    pipBtn.style.color = "#5d88b8";
-  });
-  pipBtn.addEventListener("click", () => {
-    void showPiP();
-  });
   if (typeof window === "undefined" || !("documentPictureInPicture" in window)) {
-    pipBtn.style.display = "none";
+    pipBtn.hidden = true;
   }
-  headerRight.appendChild(pipBtn);
-
-  const meta = document.createElement("div");
-  meta.style.cssText =
-    "display:flex;justify-content:space-between;padding:0 10px 4px;font-size:10px;font-weight:600;color:#4a6c91;letter-spacing:0.06em";
-  container.appendChild(meta);
-
-  const minEl = document.createElement("span");
-  const maxEl = document.createElement("span");
-  minEl.textContent = "min –";
-  maxEl.textContent = "max –";
-  meta.appendChild(minEl);
-  meta.appendChild(maxEl);
-
-  const canvas = document.createElement("canvas");
-  canvas.style.cssText = `width:100%;height:${opts.height}px;display:block`;
-  container.appendChild(canvas);
+  if (!opts.closable) closeBtn.hidden = true;
 
   const ctx = canvas.getContext("2d")!;
 
@@ -327,7 +286,7 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
   function show(parent: HTMLElement = document.body): void {
     if (state.destroyed) return;
     if (!state.mounted) {
-      parent.appendChild(container);
+      parent.appendChild(host);
       state.mounted = true;
     }
     if (state.rafId == null) state.rafId = requestAnimationFrame(tick);
@@ -345,8 +304,8 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
       cancelAnimationFrame(state.rafId);
       state.rafId = null;
     }
-    if (container.parentNode) {
-      container.parentNode.removeChild(container);
+    if (host.parentNode) {
+      host.parentNode.removeChild(host);
     }
     state.mounted = false;
   }
@@ -369,60 +328,20 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
       height: opts.height + 44,
     });
     state.pipWindow = pipWindow;
-    state.pipReturnParent = (container.parentNode as HTMLElement | null) ?? document.body;
-
-    container.style.position = "static";
-    container.style.top = "";
-    container.style.bottom = "";
-    container.style.left = "";
-    container.style.right = "";
-    container.style.borderRadius = "0";
-    container.style.border = "none";
-    container.style.boxShadow = "none";
-    container.style.width = "100%";
-    container.style.height = "100vh";
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    canvas.style.height = "auto";
-    canvas.style.flex = "1";
-    canvas.style.minHeight = "0";
-
-    // Scale text with window dimensions so the chart reads at any size.
-    header.style.padding = "min(1.6vh, 14px) min(2vw, 18px) min(0.4vh, 4px)";
-    meta.style.padding = "0 min(2vw, 18px) min(0.8vh, 6px)";
-    labelEl.style.fontSize = "clamp(11px, 1.6vw, 26px)";
-    valueEl.style.fontSize = "clamp(18px, 4vw, 72px)";
-    deltaEl.style.fontSize = "clamp(11px, 1.6vw, 26px)";
-    minEl.style.fontSize = "clamp(10px, 1.4vw, 22px)";
-    maxEl.style.fontSize = "clamp(10px, 1.4vw, 22px)";
+    state.pipReturnParent = (host.parentNode as HTMLElement | null) ?? document.body;
 
     pipWindow.document.body.style.cssText = "margin:0;background:#0a1322";
-    pipWindow.document.body.appendChild(container);
+    host.dataset.pip = "";
+    pipWindow.document.body.appendChild(host);
 
     if (state.rafId == null) state.rafId = requestAnimationFrame(tick);
     state.mounted = true;
 
     pipWindow.addEventListener("pagehide", () => {
       if (state.pipWindow !== pipWindow) return; // teardown raced us
-      container.style.borderRadius = "6px";
-      container.style.border = "1px solid #1f3358";
-      container.style.boxShadow = "0 4px 12px rgba(0,0,0,0.35)";
-      container.style.width = `${opts.width}px`;
-      container.style.height = "";
-      container.style.display = "";
-      container.style.flexDirection = "";
-      canvas.style.height = `${opts.height}px`;
-      canvas.style.flex = "";
-      canvas.style.minHeight = "";
-      header.style.padding = "5px 8px 1px";
-      meta.style.padding = "0 10px 4px";
-      labelEl.style.fontSize = "11px";
-      valueEl.style.fontSize = "18px";
-      deltaEl.style.fontSize = "11px";
-      minEl.style.fontSize = "10px";
-      maxEl.style.fontSize = "10px";
-      applyCorner(container, opts.position, opts.margin);
-      (state.pipReturnParent ?? document.body).appendChild(container);
+      delete host.dataset.pip;
+      applyCorner(host, opts.position, opts.margin);
+      (state.pipReturnParent ?? document.body).appendChild(host);
       state.pipWindow = null;
       state.pipReturnParent = null;
     });
@@ -447,5 +366,12 @@ export function createDomograph(userOptions: DomographOptions = {}): DomographIn
     state.samples.length = 0;
   }
 
-  return { element: container, show, hide, sample, showPiP, destroy };
+  pipBtn.addEventListener("click", () => {
+    void showPiP();
+  });
+  closeBtn.addEventListener("click", () => {
+    destroy();
+  });
+
+  return { element: host, show, hide, sample, showPiP, destroy };
 }
